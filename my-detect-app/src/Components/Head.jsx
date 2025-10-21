@@ -11,22 +11,23 @@ function Head(props) {
      console.log("Head changed!");
     console.log(context.status);
   }, [context.status])
-  
+
 
   return (
-    <div className='container'>
-        
-        <h1>{props.title}</h1>
-        <h3>{context.status}</h3>
-
-
-        
-        
-    <p>
-    DreTect is an advanced AI classification and detection application that leverages cutting-edge artificial intelligence and machine learning models to provide real-time attendance information for any location. Explore the app and share your valuable feedback! 
-</p>
-    {/* <p />DreTect is the state of the art AI classification/detection app that use ai and machine learning models to get information about the real time attendace for a place. Enjoy the app and feel free to give any feed back. <br /> Looking forward to connect!  */}
-      
+    <div className='container mt-4'>
+        <div className="jumbotron bg-light p-4 rounded">
+          <h1 className="display-5">{props.title}</h1>
+          <hr className="my-4" />
+          <p className="lead">
+            LibraTrack is an advanced AI-powered occupancy detection system that uses cutting-edge computer vision
+            and machine learning to provide real-time library cubicle availability. Monitor space utilization
+            and find available study spots instantly!
+          </p>
+          <div className="alert alert-info mt-3">
+            <strong>How it works:</strong> Our system uses TensorFlow.js and COCO-SSD object detection to automatically
+            detect occupancy in library cubicles through camera feeds, providing you with accurate, real-time availability status.
+          </div>
+        </div>
     </div>
   )
 }
