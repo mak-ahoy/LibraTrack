@@ -4,6 +4,11 @@ import * as cocossd from "@tensorflow-models/coco-ssd";
 import { drawRect } from "./utilities";
 import StatusContext from './Contexts/statusContext';
 
+// Mobile device detection utility
+const isMobileDevice = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
 export function FixedCropExample(props) {
   const [croppedImage, setCroppedImage] = useState(null);
   const [currentCubicleIndex, setCurrentCubicleIndex] = useState(0);
@@ -18,14 +23,34 @@ export function FixedCropExample(props) {
   useEffect(() => {
     const loadModel = async () => {
       try {
-        await tf.setBackend('webgl');
-        await tf.ready();
+        // Try WebGL first, fallback to CPU for mobile compatibility
+        const isMobile = isMobileDevice();
+        console.log(`Device type: ${isMobile ? 'Mobile' : 'Desktop'}`);
+
+        try {
+          await tf.setBackend('webgl');
+          await tf.ready();
+          console.log('WebGL backend initialized successfully');
+        } catch (webglError) {
+          console.warn('WebGL not available, falling back to CPU backend:', webglError);
+          await tf.setBackend('cpu');
+          await tf.ready();
+          console.log('CPU backend initialized successfully');
+        }
+
+        console.log('Active TensorFlow backend:', tf.getBackend());
+
         const net = await cocossd.load();
         setCocoModel(net);
         setModelLoaded(true);
         console.log('COCO-SSD model loaded successfully');
+
+        if (isMobile && tf.getBackend() === 'cpu') {
+          console.warn('Running on CPU backend - detection may be slower on mobile devices');
+        }
       } catch (error) {
         console.error('Error loading COCO-SSD model:', error);
+        alert('Failed to load AI detection model. Your device may not support this feature. Error: ' + error.message);
       }
     };
     loadModel();
@@ -34,6 +59,7 @@ export function FixedCropExample(props) {
   // Generate cropped images when crop zones or camera feed change
   useEffect(() => {
     makeFixedCrop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [context.cropZones, context.cameraFeed]);
 
   // Start detection when button is clicked
@@ -46,6 +72,16 @@ export function FixedCropExample(props) {
       alert('No crop zones configured. Please configure detection zones first.');
       return;
     }
+
+    // Mobile-specific warnings
+    if (isMobileDevice()) {
+      const backend = tf.getBackend();
+      console.log('Starting detection on mobile device with backend:', backend);
+      if (backend === 'cpu') {
+        console.warn('Mobile device using CPU backend - performance may be slower');
+      }
+    }
+
     setIsDetectionRunning(true);
     setCurrentCubicleIndex(0);
     if (allCroppedImages[0]) {
@@ -96,6 +132,17 @@ export function FixedCropExample(props) {
       if (imgWidth === 0 || imgHeight === 0) {
         console.error('Image loaded but dimensions are 0!');
         return;
+      }
+
+      // Mobile-specific canvas size validation
+      const isMobile = isMobileDevice();
+      const maxCanvasSize = isMobile ? 2048 : 4096;
+
+      if (imgWidth > maxCanvasSize || imgHeight > maxCanvasSize) {
+        console.warn(`Image size (${imgWidth}x${imgHeight}) exceeds recommended size for ${isMobile ? 'mobile' : 'desktop'} (${maxCanvasSize}x${maxCanvasSize})`);
+        if (isMobile) {
+          console.warn('Large images may cause performance issues or failures on mobile devices');
+        }
       }
 
       // Use crop zones from context
@@ -161,13 +208,21 @@ export function FixedCropExample(props) {
             cropWidth,
             cropHeight
           );
+
+          // Convert to data URL with error handling for mobile
+          try {
+            const dataURL = canvas.toDataURL('image/jpeg', 0.9); // Use 0.9 quality for better mobile performance
+            console.log(`Cubicle ${i + 1} image data URL length:`, dataURL.length);
+            dataURLs.push(dataURL);
+          } catch (canvasError) {
+            console.error(`Error converting canvas to data URL for Cubicle ${i + 1}:`, canvasError);
+            if (isMobile) {
+              console.error('Mobile device may have run out of memory. Try using a smaller image.');
+            }
+          }
         } catch (error) {
           console.error(`Error drawing image for Cubicle ${i + 1}:`, error);
         }
-
-        const dataURL = canvas.toDataURL('image/jpeg');
-        console.log(`Cubicle ${i + 1} image data URL length:`, dataURL.length);
-        dataURLs.push(dataURL);
       }
 
       // Store all cropped images for display

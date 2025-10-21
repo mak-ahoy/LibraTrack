@@ -97,10 +97,24 @@ function ConfigurationTab({ onSaveCropZones }) {
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
+      // Check file size (warn if > 5MB for mobile)
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const maxSize = isMobile ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB mobile, 10MB desktop
+
+      if (file.size > maxSize) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(0);
+        alert(`Warning: Image is ${sizeMB}MB. For best performance on ${isMobile ? 'mobile' : 'desktop'}, use images under ${maxSizeMB}MB.`);
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         context.updateCameraFeed(e.target.result);
         alert('Camera feed image updated successfully!');
+      };
+      reader.onerror = (error) => {
+        console.error('Error reading file:', error);
+        alert('Failed to load image. Please try a different image or smaller file size.');
       };
       reader.readAsDataURL(file);
     }
@@ -140,6 +154,7 @@ function ConfigurationTab({ onSaveCropZones }) {
                         type="file"
                         className="form-control"
                         accept="image/*"
+                        capture="environment"
                         onChange={handleImageUpload}
                         id="imageUpload"
                       />
@@ -147,6 +162,7 @@ function ConfigurationTab({ onSaveCropZones }) {
                         <i className="bi bi-upload"></i> Choose Image
                       </label>
                     </div>
+                    <small className="text-muted">Mobile users: You can take a photo directly with your camera</small>
                   </div>
                 </div>
               </div>
